@@ -60,3 +60,33 @@ python -m unittest -v test_flow
 不同链接指向同一岗位、关键词语义相同但写法不同，目前无法识别。
 任一步 API 失败都会显示错误并终止当前流程，不自动重试。
 终端日志显示搜索轮次、返回/新增/保留数量及停止原因，不保存日志文件。
+
+## FastAPI 搜索接口
+
+`api_demo.py` 的 GET /jobs 调用真实 SerpApi 搜索，读取服务端环境变量 `SERPAPI_API_KEY`。
+当前接口只做一轮搜索，不调用 DeepSeek；`main.py` 仍保留原有关键词改写、补充搜索和分析流程。
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe api_demo.py
+```
+
+保持终端运行，在浏览器打开：
+
+- `http://127.0.0.1:8000/`：确认服务启动。
+- `http://127.0.0.1:8000/jobs?city=郑州&keyword=Python&max_results=3`：真实搜索。
+- `http://127.0.0.1:8000/docs`：接口文档，可通过 Try it out 填参数后 Execute。
+
+参数：city 和 keyword 必填，去掉首尾空白后不能为空，长度上限分别为 30 和 100；max_results 默认为 3，允许 1~20。
+成功返回 city、keyword、count 和 results；没有结果时仍返回 200，count 为 0。
+每次合法请求会发起一次真实搜索，不自动重试；刷新页面也会再次调用，请控制验证次数。
+
+错误响应：参数缺失、长度/数量不合法或纯空白返回 422；搜索函数参数错误返回 400；搜索服务失败返回 503。
+错误使用 FastAPI 的 detail 字段，不将原始异常或含密钥的请求 URL 返回给客户端。
+按 Ctrl+C 停止服务。修改代码后需重启，再验证。
+
+离线测试（无需真实密钥，不发送搜索或模型请求）：
+
+```powershell
+.\.venv\Scripts\python.exe -m unittest -v test_api test_flow
+```
