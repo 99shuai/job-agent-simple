@@ -2,9 +2,12 @@
 
 from fastapi import FastAPI, HTTPException, Query
 from search import search_jobs
-
+from pydantic import BaseModel
+from llm import analyze_jd
 app = FastAPI(title="招聘搜索接口")
-
+class JobDescription(BaseModel):
+    title: str
+    content: str
 
 @app.get("/")
 def home():
@@ -36,8 +39,35 @@ def get_jobs(
         ) from None
 
     return {"city": city, "keyword": keyword, "count": len(results), "results": results}
+@app.post("/jd")
+def analyze_jd_endpoint(jd: JobDescription):
+    """分析岗位标题和 JD 正文，返回 DeepSeek 分析结果。"""
+    title = jd.title.strip()
+    content = jd.content.strip()
 
+    if not title or not content:
+        raise HTTPException(
+            status_code=422,
+            detail="岗位标题和 JD 正文不能为空。",
+        )
+    if len(content) < 10:
+        raise HTTPException(
+            status_code=422,
+            detail="岗位 JD 正文内容过短，请提供更完整的描述。",
+        )
 
+    try:
+        analysis_result = analyze_jd(title, content)
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve)) from None
+    except RuntimeError as re:
+        raise HTTPException(status_code=503, detail=str(re)) from None
+
+    return {
+        "title": title,
+        "content": content,
+        "analysis": analysis_result,
+    }
 if __name__ == "__main__":
     import uvicorn
 
