@@ -6,6 +6,8 @@
 
 目前是固定工作流应用，未实现自主 Tool Calling 或 RAG。
 
+运行和演示步骤见 [DEMO.md](DEMO.md)。
+
 ## 一条命令运行
 
 在项目根目录执行：
@@ -107,8 +109,10 @@ job-agent-simple/
 │   └── llm.py               # DeepSeek 调用和输入上下文
 ├── tests/                   # 离线模拟测试
 ├── examples/liepin_jd.py     # 未接入主流程的旧提取练习
-├── DEMO.md                  # 项目演示和面试讲解
-├── requirements.txt
+├── DEMO.md                  # 通用演示步骤与流程说明
+├── .github/workflows/tests.yml # GitHub 自动运行离线测试
+├── requirements-dev.txt      # 测试依赖
+├── requirements.txt          # 运行依赖
 ├── .env.example
 └── .gitignore
 ```
