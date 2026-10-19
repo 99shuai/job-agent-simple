@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>职引 · 招聘搜索与 JD 分析</title>
+  <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="职引首页">
+      <span class="brand-icon" aria-hidden="true">职</span><span>职引<span class="brand-en"> JOBLENS</span></span>
+    </a>
+    <nav class="tabs" role="tablist" aria-label="工作模式">
+      <button class="tab active" data-mode="search" aria-selected="true" role="tab">关键词搜索</button>
+      <button class="tab" data-mode="jd" aria-selected="false" role="tab">粘贴 JD 分析</button>
+    </nav>
+    <span class="local-badge"><i></i>本地工作台</span>
+  </header>
+  <main class="workspace">
+    <section class="intro">
+      <div><span class="eyebrow">招聘信息 · 辅助阅读</span><h1>查找岗位，读懂招聘要求</h1>
+      <p>从职位正文整理技术方向、明确要求和待核实信息，保留原始来源供你判断。</p></div>
+      <a class="quiet-link" href="/docs" target="_blank" rel="noopener">接口文档 <span aria-hidden="true">↗</span></a>
+    </section>
+
+    <section class="setup" aria-labelledby="setup-title">
+      <div class="setup-copy"><h2 id="setup-title">使用前准备</h2><div class="chips" id="service-status"><span class="chip">正在检查服务配置…</span></div>
+      <p id="setup-message">搜索需要搜索服务、分析服务及已登录的 BOSS 专用浏览器；粘贴 JD 仅需分析服务。</p></div>
+      <div class="setup-actions"><button id="open-browser" class="button secondary" type="button">打开 BOSS 登录窗口 <span aria-hidden="true">↗</span></button>
+      <button id="refresh-status" class="text-button" type="button">刷新状态</button></div>
+    </section>
+    <div id="notice" role="status" class="notice" hidden></div>
+
+    <div class="work-grid">
+      <aside>
+        <section class="panel input-panel">
+          <div class="panel-heading"><span class="step-number">01</span><h2 id="form-heading">设置搜索条件</h2></div>
+          <form id="search-form">
+            <label for="city">工作城市</label>
+            <input id="city" name="city" value="郑州" required maxlength="30" autocomplete="address-level2" placeholder="例如：郑州">
+            <label for="keyword">岗位关键词</label>
+            <input id="keyword" name="keyword" value="AI" required maxlength="100" placeholder="例如：AI、Python、后端开发">
+            <label for="max-results">最多分析岗位数</label>
+            <select id="max-results" name="max_results"><option value="1">1 个岗位</option><option value="2">2 个岗位</option><option value="3" selected>3 个岗位</option><option value="4">4 个岗位</option><option value="5">5 个岗位</option></select>
+            <p class="field-help">实际数量取决于匹配结果，最多 5 个；每个岗位分别调用模型分析。</p>
+            <button class="button primary submit-button" type="submit"><span class="button-symbol" aria-hidden="true">⌕</span> 搜索并分析岗位</button>
+          </form>
+          <form id="jd-form" hidden>
+            <label for="jd-title">岗位标题</label>
+            <input id="jd-title" name="title" required maxlength="200" placeholder="例如：AI 应用开发实习生">
+            <div class="label-row"><label for="jd-content">JD 正文</label><button id="fill-example" class="text-button" type="button">填入演示 JD</button></div>
+            <textarea id="jd-content" name="content" required rows="10" maxlength="30000" placeholder="粘贴岗位职责和任职要求，至少 10 个非首尾空白字符。"></textarea>
+            <p class="field-help" id="jd-length">正文 0 字 · 至少需要 10 字</p>
+            <p id="example-hint" class="example-hint" hidden>当前为演示用岗位描述，不代表真实招聘信息。</p>
+            <button class="button primary submit-button" type="submit">分析这份 JD <span aria-hidden="true">→</span></button>
+          </form>
+          <div class="input-footnote"><span aria-hidden="true">ⓘ</span><p id="mode-note">目前支持 BOSS 部分职位与列表模板。首次使用请在专用浏览器中手动完成登录。</p></div>
+        </section>
+        <section class="reading-note"><h3>分析依据是什么？</h3><p>模型依据获取到的正文分析。信息缺失会标记为待核实，输出不代表公司、薪资或招聘状态已经确认。</p></section>
+      </aside>
+
+      <section class="panel results-panel" aria-labelledby="results-heading">
+        <div class="results-header"><div class="panel-heading"><span class="step-number">02</span><h2 id="results-heading">分析结果</h2></div>
+          <span class="result-count" id="result-count">等待开始</span></div>
+        <div id="progress" class="progress" hidden aria-live="polite">
+          <div class="progress-title"><span class="spinner" aria-hidden="true"></span><strong id="progress-message">正在准备…</strong><span id="elapsed">0 秒</span></div>
+          <ol class="steps"><li data-step="search">搜索网页</li><li data-step="filter">筛选岗位</li><li data-step="jd">读取 JD</li><li data-step="analysis">AI 分析</li></ol>
+        </div>
+        <div id="result-summary" class="result-summary" hidden role="status"></div>
+        <div id="error-box" class="error-box" hidden role="alert"></div>
+        <div id="empty-state" class="empty-state">
+          <div class="empty-illustration" aria-hidden="true"><div class="paper"><span></span><span></span><span></span><div class="paper-check">✓</div></div><i class="orbit orbit-one"></i><i class="orbit orbit-two"></i></div>
+          <h3 id="empty-title">你的下一份岗位分析，从这里开始</h3>
+          <p id="empty-description">填写城市和关键词，或切换到「粘贴 JD 分析」。<br>结果会在这里逐条展示。</p>
+          <div class="empty-tags"><span>技术方向</span><span>明确要求</span><span>待核实信息</span></div>
+        </div>
+        <div id="job-results" class="job-results" aria-live="polite"></div>
+      </section>
+    </div>
+    <footer><span>职引 · 为招聘信息提供阅读辅助</span><span>分析仅供参考，请以原始职位和招聘方确认为准。</span></footer>
+  </main>
+</body>
+</html>

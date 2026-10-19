@@ -11,9 +11,9 @@ from urllib.error import HTTPError, URLError
 
 import httpx
 import openai
-import main
-import search
-import llm
+from job_agent import cli as main
+from job_agent import search
+from job_agent import llm
 
 
 def job(number):
@@ -26,7 +26,7 @@ class OfflineTests(unittest.TestCase):
         for guard in (
             patch.dict(os.environ, {"SERPAPI_API_KEY": "test-serpapi-key",
                                     "DEEPSEEK_API_KEY": "test-deepseek-key"}, clear=True),
-            patch("search.urlopen", side_effect=AssertionError("禁止真实搜索请求")),
+            patch("job_agent.search.urlopen", side_effect=AssertionError("禁止真实搜索请求")),
             patch("openai.OpenAI", side_effect=AssertionError("禁止真实 LLM 请求")),
         ):
             guard.start()
@@ -35,9 +35,9 @@ class OfflineTests(unittest.TestCase):
     def run_flow(self, batches, rewritten="Python AI", quantity="3", analyze_error=None):
         output = io.StringIO()
         with patch("builtins.input", side_effect=["郑州", "AI Agent", quantity]), \
-             patch("main.search_jobs", side_effect=batches) as search_mock, \
-             patch("main.expand_keyword", return_value=rewritten) as expand_mock, \
-             patch("main.analyze_jobs", return_value="模拟分析", side_effect=analyze_error) as analyze_mock, \
+             patch("job_agent.cli.search_jobs", side_effect=batches) as search_mock, \
+             patch("job_agent.cli.expand_keyword", return_value=rewritten) as expand_mock, \
+             patch("job_agent.cli.analyze_jobs", return_value="模拟分析", side_effect=analyze_error) as analyze_mock, \
              contextlib.redirect_stdout(output):
             main.main()
         return search_mock, expand_mock, analyze_mock, output.getvalue()
@@ -116,9 +116,9 @@ class OfflineTests(unittest.TestCase):
                 self.assertIn("流程已终止", out)
 
     def test_keyword_rewrite_failure_aborts(self):
-        with patch("main.expand_keyword", side_effect=RuntimeError("改写失败")), \
-             patch("main.search_jobs", return_value=[job(1)]) as s, \
-             patch("main.analyze_jobs") as a, \
+        with patch("job_agent.cli.expand_keyword", side_effect=RuntimeError("改写失败")), \
+             patch("job_agent.cli.search_jobs", return_value=[job(1)]) as s, \
+             patch("job_agent.cli.analyze_jobs") as a, \
              patch("builtins.input", side_effect=["郑州", "AI Agent", "3"]), \
              contextlib.redirect_stdout(io.StringIO()) as out:
             main.main()
@@ -144,7 +144,7 @@ class OfflineTests(unittest.TestCase):
 
     def test_missing_keys_skip_input_and_api(self):
         with patch.dict(os.environ, {}, clear=True), patch("builtins.input") as inp, \
-             patch("main.search_jobs") as s, contextlib.redirect_stdout(io.StringIO()) as out:
+             patch("job_agent.cli.search_jobs") as s, contextlib.redirect_stdout(io.StringIO()) as out:
             main.main()
         inp.assert_not_called()
         s.assert_not_called()
@@ -154,7 +154,7 @@ class OfflineTests(unittest.TestCase):
     def search_payload(self, payload):
         manager = MagicMock()
         manager.__enter__.return_value = io.StringIO(json.dumps(payload))
-        with patch("search.urlopen", return_value=manager) as request:
+        with patch("job_agent.search.urlopen", return_value=manager) as request:
             results = search.search_jobs("郑州", "AI Agent", 3)
         self.assertEqual(request.call_count, 1)
         self.assertEqual(request.call_args.kwargs["timeout"], 30)
@@ -169,7 +169,7 @@ class OfflineTests(unittest.TestCase):
     def test_search_http_network_timeout_errors_hide_secrets(self):
         for failure in (HTTPError("secret-url", 401, "test-serpapi-key", None, None),
                         URLError("test-serpapi-key"), TimeoutError()):
-            with self.subTest(error=type(failure).__name__), patch("search.urlopen", side_effect=failure) as request:
+            with self.subTest(error=type(failure).__name__), patch("job_agent.search.urlopen", side_effect=failure) as request:
                 with self.assertRaises(RuntimeError) as error:
                     search.search_jobs("郑州", "AI Agent")
                 self.assertNotIn("test-serpapi-key", str(error.exception))
@@ -181,7 +181,7 @@ class OfflineTests(unittest.TestCase):
                 self.search_payload(payload)
         manager = MagicMock()
         manager.__enter__.return_value = io.StringIO("not json")
-        with patch("search.urlopen", return_value=manager), self.assertRaises(RuntimeError):
+        with patch("job_agent.search.urlopen", return_value=manager), self.assertRaises(RuntimeError):
             search.search_jobs("郑州", "AI Agent")
 
     def test_llm_errors_no_retries_and_hide_secrets(self):
@@ -211,13 +211,13 @@ class OfflineTests(unittest.TestCase):
 
     def test_keyword_reply_validation(self):
         for text in ("", "  ", "词一\n词二"):
-            with self.subTest(text=text), patch("llm.call_deepseek", return_value=text), self.assertRaises(RuntimeError):
+            with self.subTest(text=text), patch("job_agent.llm.call_deepseek", return_value=text), self.assertRaises(RuntimeError):
                 llm.expand_keyword("AI Agent")
-        with patch("llm.call_deepseek", return_value=" Python AI "):
+        with patch("job_agent.llm.call_deepseek", return_value=" Python AI "):
             self.assertEqual(llm.expand_keyword("AI Agent"), "Python AI")
 
     def test_analysis_context_and_empty_results(self):
-        with patch("llm.call_deepseek", return_value="分析") as call:
+        with patch("job_agent.llm.call_deepseek", return_value="分析") as call:
             llm.analyze_jobs([])
             call.assert_not_called()
             self.assertEqual(llm.analyze_jobs([job(1)]), "分析")

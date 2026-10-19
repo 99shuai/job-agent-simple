@@ -7,7 +7,7 @@ from urllib.parse import urlencode
 from urllib.request import urlopen
 
 
-def search_jobs(city: str, keyword: str, max_results: int = 3,) -> list[dict]:
+def search_jobs(city: str, keyword: str, max_results: int = 3) -> list[dict]:
     """调用一次 SerpApi 百度搜索，返回标题、原始链接和摘要。"""
     key = os.getenv("SERPAPI_API_KEY", "").strip()
     if not key:
@@ -27,6 +27,7 @@ def search_jobs(city: str, keyword: str, max_results: int = 3,) -> list[dict]:
         with urlopen(f"https://serpapi.com/search.json?{params}", timeout=30) as response:
             data = json.load(response)
     except HTTPError as exc:
+        exc.close()
         raise RuntimeError(f"搜索失败（HTTP {exc.code}），请检查密钥、账户额度或稍后重试。") from None
     except (URLError, TimeoutError, OSError):
         raise RuntimeError("搜索请求失败或超时，请检查网络。") from None
@@ -61,3 +62,11 @@ def search_jobs(city: str, keyword: str, max_results: int = 3,) -> list[dict]:
         if len(results) >= max_results:
             break
     return results
+'''提取jd'''
+def extract_jd_from_snippet(snippet: str) -> str:
+    """仅清理摘要空白，不补全或生成 JD。"""
+    if not isinstance(snippet, str):
+        return ""
+    # 去掉多余空白和换行，保留中文、英文、数字和常见标点。
+    cleaned = " ".join(snippet.split())
+    return cleaned
